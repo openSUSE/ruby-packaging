@@ -1,0 +1,16 @@
+#
+# IMPORTANT IMPORTANT IMPORTANT IMPORTANT  IMPORTANT IMPORTANT
+#
+#  if you change any macros here you have to update the copy in the
+#  prjconf aswell.
+#
+# IMPORTANT IMPORTANT IMPORTANT IMPORTANT  IMPORTANT IMPORTANT
+#
+%rubygemsruby21() rubygem(2.1.0:%{expand:%%rubygemsx%*} %{expand:%%{rubygems%*}}
+%rubygemsxruby21() %{expand:%%{rubygemsx%*}}
+
+%rubyruby21() ruby2.1 %{expand:%%rubyx%*} %{expand:%%{ruby%*}}
+%rubyxruby21() %{expand:%%{rubyx%*}}
+
+%rubydevelruby21() ruby2.1-devel %{expand:%%rubydevelx%*} %{expand:%%{rubydevel%*}}
+%rubydevelxruby21() %{expand:%%{rubydevelx%*}}
