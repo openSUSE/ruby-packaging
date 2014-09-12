@@ -45,7 +45,10 @@ if [ "x$gemfile" = "x" ] ; then
   fi
   otheropts="$otheropts $gemfile"
 fi
-
+# workaround for rubinius bug
+# https://github.com/rubinius/rubinius/issues/2732
+export LC_ALL="en_US.UTF-8"
+export LANG="en_US.UTF-8"
 set -x
 for ruby in /usr/bin/ruby.* ; do
   gemrpm="/usr/bin/gem2rpm${ruby#/usr/bin/ruby}"
