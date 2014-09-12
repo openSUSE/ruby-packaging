@@ -1,0 +1,16 @@
+#
+# IMPORTANT IMPORTANT IMPORTANT IMPORTANT  IMPORTANT IMPORTANT
+#
+#  if you change any macros here you have to update the copy in the
+#  prjconf aswell.
+#
+# IMPORTANT IMPORTANT IMPORTANT IMPORTANT  IMPORTANT IMPORTANT
+#
+%rubygemsrubinius22() rubygem(rubinius:2.2:%{expand:%%rubygemsx%*} %{expand:%%{rubygems%*}}
+%rubygemsxrubinius22() %{expand:%%{rubygemsx%*}}
+
+%rubyrubinius22() rubinius2.2 %{expand:%%rubyx%*} %{expand:%%{ruby%*}}
+%rubyxrubinius22() %{expand:%%{rubyx%*}}
+
+%rubydevelrubinius22() rubinius2.2-devel %{expand:%%rubydevelx%*} %{expand:%%{rubydevel%*}}
+%rubydevelxrubinius22() %{expand:%%{rubydevelx%*}}

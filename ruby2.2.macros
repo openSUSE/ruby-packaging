@@ -6,11 +6,11 @@
 #
 # IMPORTANT IMPORTANT IMPORTANT IMPORTANT  IMPORTANT IMPORTANT
 #
-%rubygemsruby22() rubygem(2.2.0:%{expand:%%rubygemsx%*} %{expand:%%{rubygems%*}}
+%rubygemsruby22() rubygem(ruby:2.2.0:%{expand:%%rubygemsx%*} %{expand:%%{rubygems%*}}
 %rubygemsxruby22() %{expand:%%{rubygemsx%*}}
 
 %rubyruby22() ruby2.2 %{expand:%%rubyx%*} %{expand:%%{ruby%*}}
 %rubyxruby22() %{expand:%%{rubyx%*}}
 
-%rubydevelruby22() ruby2.2-devel %{expand:%%rubyx%*} %{expand:%%{rubydevel%*}}
+%rubydevelruby22() ruby2.2-devel %{expand:%%rubydevelx%*} %{expand:%%{rubydevel%*}}
 %rubydevelxruby22() %{expand:%%{rubydevelx%*}}

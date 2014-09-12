@@ -1,0 +1,7 @@
+%rb_default_ruby_suffix rbx2.2
+
+%rb_default_ruby        rubinius22
+%rb_default_ruby_abi    rubinius:2.2
+
+%rb_build_versions      %rb_default_ruby
+%rb_build_ruby_abis     %rb_default_ruby_abi

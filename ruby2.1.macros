@@ -6,7 +6,7 @@
 #
 # IMPORTANT IMPORTANT IMPORTANT IMPORTANT  IMPORTANT IMPORTANT
 #
-%rubygemsruby21() rubygem(2.1.0:%{expand:%%rubygemsx%*} %{expand:%%{rubygems%*}}
+%rubygemsruby21() rubygem(ruby:2.1.0:%{expand:%%rubygemsx%*} %{expand:%%{rubygems%*}}
 %rubygemsxruby21() %{expand:%%{rubygemsx%*}}
 
 %rubyruby21() ruby2.1 %{expand:%%rubyx%*} %{expand:%%{ruby%*}}

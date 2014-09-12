@@ -1,7 +1,7 @@
 %rb_default_ruby_suffix ruby2.1
 
 %rb_default_ruby        ruby21
-%rb_default_ruby_abi    2.1.0
+%rb_default_ruby_abi    ruby:2.1.0
 
 %rb_build_versions      %rb_default_ruby
 %rb_build_ruby_abis     %rb_default_ruby_abi

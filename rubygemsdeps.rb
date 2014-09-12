@@ -78,8 +78,9 @@ def register_gemspec_from_file(gemspecs, rubyabi, file)
 end  
 
 def rubyabi_from_path(path)
-  m = path.match(%r{.*/gems/([^/]*)/.*})
-  return m ? m[1] : RbConfig::CONFIG["ruby_version"]
+  m = path.match(%r{.*/([^/]*)/gems/([^/]*)/.*})
+  # return m ? m[1] : RbConfig::CONFIG["ruby_version"]
+  return { :interpreter => m[1], :version => m[2], :abi => "#{m[1]}:#{m[2]}" }
 end
 
 gemspecs = Array.new
@@ -100,14 +101,15 @@ else
   end
 end
 
-gemspecs.each do |rubyabi, spec|
+gemspecs.each do |rubyabi_hash, spec|
+  rubyabi  = rubyabi_hash[:abi]
   if provides
-    # old forms
-    puts "rubygem-#{spec.name} = #{spec.version}"
     versions = spec.version.to_s.split('.')
-    puts "rubygem-#{spec.name}-#{versions[0]} = #{spec.version}" if versions.length > 0
-    puts "rubygem-#{spec.name}-#{versions[0]}_#{versions[1]} = #{spec.version}" if versions.length > 1
-    puts "rubygem-#{spec.name}-#{versions[0]}_#{versions[1]}_#{versions[2]} = #{spec.version}" if versions.length > 2
+    # old forms
+    # puts "rubygem-#{spec.name} = #{spec.version}"
+    # puts "rubygem-#{spec.name}-#{versions[0]} = #{spec.version}" if versions.length > 0
+    # puts "rubygem-#{spec.name}-#{versions[0]}_#{versions[1]} = #{spec.version}" if versions.length > 1
+    # puts "rubygem-#{spec.name}-#{versions[0]}_#{versions[1]}_#{versions[2]} = #{spec.version}" if versions.length > 2
 
     # version without ruby version - asking for trouble
     puts "rubygem(#{spec.name}) = #{spec.version}"
@@ -121,7 +123,7 @@ gemspecs.each do |rubyabi, spec|
 
   if requires
     puts "ruby(abi) = #{rubyabi}" if rubyabi
-    puts "rubygems" if rubyabi.to_f < 1.9
+    puts "rubygems" if rubyabi_hash[:version].to_f < 1.9
     spec.runtime_dependencies.each do |dep|
       dep.requirement.requirements.each do |r|
         if r.first == '~>'
