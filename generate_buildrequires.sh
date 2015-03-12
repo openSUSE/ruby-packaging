@@ -94,11 +94,15 @@ EOF
 
 usage () {
     # Call as: usage [EXITCODE] [USAGE MESSAGE]
-    exit_code=1
-    if [[ "$1" == [0-9] ]]; then
-        exit_code="$1"
-        shift
-    fi
+    case "$1" in
+        [0-9])
+            exit_code="$1"
+            shift
+            ;;
+        *)
+            exit_code=1
+            ;;
+    esac
     if [ -n "$1" ]; then
         echo "$*" >&2
         echo
