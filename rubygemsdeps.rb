@@ -7,7 +7,7 @@ export LANG="en_US.UTF-8"
 for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
   test -x "$ruby" && break
 done
-exec $ruby $0 "$@"
+exec $ruby -x $0 "$@"
 =end
 #!/usr/bin/ruby
 
