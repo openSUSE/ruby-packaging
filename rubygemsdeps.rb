@@ -1,3 +1,14 @@
+#!/bin/sh
+=begin &>/dev/null
+# workaround for rubinius bug
+# https://github.com/rubinius/rubinius/issues/2732
+export LC_ALL="en_US.UTF-8"
+export LANG="en_US.UTF-8"
+for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
+  test -x "$ruby" && break
+done
+exec $ruby $0 "$@"
+=end
 #!/usr/bin/ruby
 
 # Copyright (c) 2012 Stephan Kulow
@@ -80,7 +91,7 @@ end
 def rubyabi_from_path(path)
   m = path.match(%r{.*/([^/]*)/gems/([^/]*)/.*})
   # return m ? m[1] : RbConfig::CONFIG["ruby_version"]
-  return { :interpreter => m[1], :version => m[2], :abi => "#{m[1]}:#{m[2]}" }
+  return { :interpreter => m[1], :version => m[2], :abi => "#{m[1]}:#{m[2]}", :requires => "#{m[1]}(abi) = #{m[2]}" }
 end
 
 gemspecs = Array.new
@@ -103,6 +114,7 @@ end
 
 gemspecs.each do |rubyabi_hash, spec|
   rubyabi  = rubyabi_hash[:abi]
+  rubyabi_requires = rubyabi_hash[:requires]
   if provides
     versions = spec.version.to_s.split('.')
     # old forms
@@ -122,7 +134,7 @@ gemspecs.each do |rubyabi_hash, spec|
   end
 
   if requires
-    puts "ruby(abi) = #{rubyabi}" if rubyabi
+    puts rubyabi_requires if rubyabi_requires
     puts "rubygems" if rubyabi_hash[:version].to_f < 1.9
     spec.runtime_dependencies.each do |dep|
       dep.requirement.requirements.each do |r|
