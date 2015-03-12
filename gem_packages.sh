@@ -1,4 +1,10 @@
 #!/bin/bash
+# we always start in /home/abuild but in older distros we wouldnt find the sources that way.
+# switch to /usr/src/packages/
+if [ ! -d $PWD/rpmbuild ] ; then
+  cd /usr/src/packages/
+fi
+shopt -s nullglob
 # options may be followed by one colon to indicate they have a required argument
 if ! options=$(getopt -o dEf -l default-gem:,build-root:,gem-name:,gem-version:,gem2rpm-config: -- "$@")
 then
@@ -38,7 +44,7 @@ if [ "x$gem_config" = "x" ] ; then
 fi
 
 if [ "x$gemfile" = "x" ] ; then 
-  gemfile=$(find . -maxdepth 2 -type f -name "$defaultgem")
+  gemfile=$(find . -maxdepth 2 -type f -name "$defaultgem" -not -path \*/.gem/\* | head -n 1)
   # if still empty, we pick the sources
   if [ "x$gemfile" = "x" ] ; then
     gemfile=$(find $RPM_SOURCE_DIR -name "$defaultgem")
@@ -50,7 +56,11 @@ fi
 export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 set -x
-for ruby in /usr/bin/ruby.* ; do
-  gemrpm="/usr/bin/gem2rpm${ruby#/usr/bin/ruby}"
+for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
+  ruby="${ruby#/usr/bin/ruby}"
+  if [[ $ruby == [0-9]* ]] ; then
+    ruby=".ruby$ruby"
+  fi
+  gemrpm="/usr/bin/gem2rpm${ruby}"
   $gemrpm $otheropts
 done
