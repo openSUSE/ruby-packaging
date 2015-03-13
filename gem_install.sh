@@ -1,129 +1,217 @@
-#! /bin/bash
-
-set -e
+#!/bin/sh
+# vim: set sw=2 sts=2 et tw=80 ft=ruby:
+=begin &>/dev/null
+# workaround for rubinius bug
+# https://github.com/rubinius/rubinius/issues/2732
+export LC_ALL="en_US.UTF-8"
+export LANG="en_US.UTF-8"
 shopt -s nullglob
+for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
+  $ruby -x $0 "$@"
+done
+exit $?
+=end
+#!/usr/bin/ruby
+#require 'gem2rpm'
+require 'rbconfig'
+require 'optparse'
+require 'optparse/time'
+require 'ostruct'
+require 'fileutils'
+require 'find'
+require 'tempfile'
+require 'logger'
 
-# options may be followed by one colon to indicate they have a required argument
-if ! options=$(getopt -o dEf -l ignore-dependencies,force,no-rdoc,rdoc,no-ri,ri,env-shebang,no-env-shebang,symlink-binaries,default-gem:,build-root:,doc-files:,gem-name:,gem-version:,gem-suffix:,gem-binary: -- "$@")
-then
-    # something went wrong, getopt will put out an error message for us
-    exit 1
-fi
+require 'rubygems/package'
 
-eval set -- "$options"
-
-gem_binary="/usr/bin/gem.* /usr/bin/gem[0-9].[0-9]"
-defaultgem=
-gemfile=
-otheropts=
-buildroot=
-docfiles=
-gemname=
-gemversion=
-gemsuffix=
-ua_dir="/etc/alternatives"
-docdir="/usr/share/doc/packages"
+options=OpenStruct.new
+options.defaultgem=nil
+options.gemfile=nil
+options.otheropts=nil
+options.buildroot=nil
+options.docfiles=[]
+options.gemname=nil
+options.gemversion=nil
+options.gemsuffix=nil
+options.otheropts=[]
+options.ua_dir='/etc/alternatives'
+options.docdir='/usr/share/doc/packages'
 # once we start fixing packages set this to true
-symlinkbinaries="false"
+options.symlinkbinaries=false
+options.verbose = false
+options.rpmsourcedir = ENV['RPM_SOURCE_DIR'] || '/home/abuild/rpmbuild/SOURCES'
+options.rpmbuildroot = ENV['RPM_BUILD_ROOT'] || '/home/abuild/rpmbuild/BUILDROOT/just-testing'
 
-while [ $# -gt 0 ]
-do
-    case $1 in
-    --default-gem) defaultgem=$2 ; shift;;
-    --gem-binary) echo "Ignored --gem-binary option" >&2 ; shift;;
-    --doc-files) docfiles="$2" ; shift;;
-    --gem-name) gemname="$2" ; shift;;
-    --gem-version) gemversion="$2" ; shift;;
-    --gem-suffix) gemsuffix="$2" ; shift;;
-    --symlink-binaries) symlinkbinaries="true" ;;
-    --build-root) otheropts="$otheropts $1=$2"; buildroot=$2; shift;;
-    (--) ;;
-    (-*) otheropts="$otheropts $1";;
-    (*) gemfile=$1; otheropts="$otheropts $1"; break;;
-    esac
-    shift
-done
+GILogger = Logger.new(STDERR)
+GILogger.level=Logger::DEBUG
+def bail_out(msg)
+  GILogger.error(msg)
+  exit 1
+end
 
-if [ "x$gemfile" = "x" ] ; then 
-  gemfile=$(find . -maxdepth 2 -type f -name "$defaultgem")
-  # if still empty, we pick the sources
-  if [ "x$gemfile" = "x" ] ; then
-    gemfile=$(find $RPM_SOURCE_DIR -name "$defaultgem")
-  fi
-  otheropts="$otheropts $gemfile"
-fi
-set -x
+opt_parser = OptionParser.new do |opts|
+  opts.banner = "Usage: gem_install.rb [options]"
 
-mkdir -p "${RPM_BUILD_ROOT}${ua_dir}"
-mkdir -p "${RPM_BUILD_ROOT}$docdir"
+  opts.separator ""
+  opts.separator "Specific options:"
 
-for gem in $gem_binary ; do
-  $gem install --verbose --local $otheropts
-  # get the ruby interpreter
-  ruby="${gem#/usr/bin/gem}"
-  if [[ $ruby == [0-9]* ]] ; then
-    destruby=".ruby$ruby"
+  opts.on('--config [FILENAME]', 'path to gem2rpm.yml') do |name|
+    options.config = name
+  end
+
+  opts.on('--default-gem [FILENAME]', 'Which filename to use when we dont find another gem file.') do |fname|
+    options.defaultgem=fname
+  end
+  opts.on('--gem-binary [PATH]', 'Path to gem. By default we loop over all gem binaries we find') do |fname|
+    bail_out("The --gem-binary option is deprecated.")
+  end
+  opts.on('--doc-files [FILES]', 'Whitespace separated list of documentation files we should link to /usr/share/doc/packages/<subpackage>') do |files|
+    options.docfiles = files.split(/\s+/)
+  end
+  opts.on('--gem-name [NAME]', 'Name of them gem') do |name|
+    options.gemname = name
+  end
+  opts.on('--gem-version [VERSION]', 'Version of them gem') do |version|
+    options.gemversion = version
+  end
+  opts.on('--gem-suffix [SUFFIX]', 'Suffix we should append to the subpackage names') do |suffix|
+    options.gemsuffix = suffix
+  end
+  opts.on('--build-root [BUILDROOT]', 'Path to rpm buildroot') do |buildroot|
+    options.buildroot = buildroot
+  end
+  # Boolean switches
+  opts.on('--[no-]symlink-binaries', 'Create all the version symlinks for the binaries') do |v|
+    options.symlinkbinaries = v
+  end
+  opts.on('-d', 'Forwarded to gem install') do |v|
+    options.otheropts << '-d'
+  end
+  opts.on('-f', 'Forwarded to gem install') do |v|
+    options.otheropts << '-f'
+  end
+  opts.on('-E', 'Forwarded to gem install') do |v|
+    options.otheropts << '-f'
+  end
+  opts.separator ""
+  opts.separator "Common options:"
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    options.verbose = v
+  end
+  opts.on_tail('-h', '--help', 'Show this message') do
+    puts opts
+    exit
+  end
+end
+
+options.otheropts=opt_parser.parse!(ARGV)
+GILogger.info "unhandled options: #{options.otheropts.inspect}"
+if options.gemfile.nil?
+  # we are in /home/abuild/rpmbuild/BUILD/
+  # search for rebuild gem files
+  gemlist = Dir['*/*.gem', '*/*/.gem', "#{options.rpmsourcedir}/*.gem"]
+  if gemlist.empty?
+     bail_out("Can not find any gem file")
+  end
+  options.gemfile = gemlist.first
+  GILogger.info "Found gem #{options.gemfile}"
+end
+
+# TODO: we can *not* use gem2rpm here. check how to do it with plain rubygems.
+package   = Gem::Package.new(options.gemfile)
+spec      = package.spec
+gemdir    = File.join(Gem.dir, 'gems', "#{options.gemname}-#{options.gemversion}")
+# TODO: ruby = "#{File.join(RbConfig::CONFIG['bindir'],RbConfig::CONFIG['ruby_install_name'])}mo"
+ruby      = Gem.ruby
+gembinary = Gem.default_exec_format % "/usr/bin/gem"
+
+rubysuffix = Gem.default_exec_format % ''
+case rubysuffix
+  when /\A\d+.\d+\z/
+    options.rubysuffix = rubysuffix
+    options.rubyprefix = rubysuffix
+  when /\A\.(.*)\z/
+    options.rubysuffix = ".#{$1}"
+    options.rubyprefix = $1
+  when ''
+    rb_ver = RbConfig::CONFIG['ruby_version'].gsub(/^(\d+\.\d+).*$/, "\1")
+    options.rubysuffix = "ruby#{rb_ver}"
+    options.rubyprefix = "ruby#{rb_ver}"
   else
-    destruby="$ruby"
-  fi
-  rpmname="${destruby#.}-rubygem-${gemname}${gemsuffix:+$gemsuffix}"
-  if test -d $RPM_BUILD_ROOT/usr/bin; then
-    pushd $RPM_BUILD_ROOT/usr/bin
-    if [ "x$symlinkbinaries" = "xtrue" ] ; then
-      for i in *$ruby ; do
-        unversioned="${i%$ruby}"
-        fullyversioned="$unversioned$destruby-${gemversion}"
-        rubyversioned="$unversioned$destruby"
-        gemversioned="$unversioned-$gemversion"
-        mv -v ${i} $fullyversioned
-        perl -p -i -e "s/>= 0/= $gemversion/" $fullyversioned
-        if [ ! -L ${RPM_BUILD_ROOT}${ua_dir}/${unversioned} ] ; then
-          ln -sv ${unversioned} ${RPM_BUILD_ROOT}${ua_dir}/${unversioned}
-        fi
-        # unversioned
-        if [ ! -L $unversioned ] ; then
-          ln -sv ${ua_dir}/${unversioned} $unversioned
-        fi
+    bail_out "unknown binary naming scheme: #{rubysuffix}"
+end
+GILogger.info "Using suffix #{options.rubysuffix}"
 
-        # ruby versioned
-        if [ ! -L ${RPM_BUILD_ROOT}${ua_dir}/$rubyversioned ] ; then
-          ln -sv ${rubyversioned} ${RPM_BUILD_ROOT}${ua_dir}/$rubyversioned
-        fi
-        if [ ! -L $rubyversioned ] ; then
-          ln -sv ${ua_dir}/${rubyversioned} $rubyversioned
-        fi
-        # gem versioned
-        if [ ! -L ${RPM_BUILD_ROOT}${ua_dir}/$gemversioned ] ; then
-          ln -sv $gemversioned ${RPM_BUILD_ROOT}${ua_dir}/$gemversioned
-        fi
-        if [ ! -L $gemversioned ] ; then
-          ln -sv ${ua_dir}/$gemversioned $gemversioned
-        fi
-      done ;
-    else
-      for i in *$ruby ; do
-        # lets undo the format-executable to avoid breaking more spec files
-        unversioned="${i%$ruby}"
-        mv -v $i $unversioned 
-      done
-    fi
-    popd
-  fi
-  gemdir="$($gem env gemdir)"
-  if [ "x$docfiles" != "x" ] ; then
-    mkdir -p "${RPM_BUILD_ROOT}${docdir}/${rpmname}"
-    for i in $docfiles ; do
-      ln -sfv "${gemdir}/gems/${gemname}-${gemversion}/${i}" "${RPM_BUILD_ROOT}${docdir}/${rpmname}/${i}"
-    done
-  fi
-  if [ -d "$buildroot" ]; then
-    find ${buildroot}${gemdir} -type f -perm /u+x | while read file; do
-      # TODO: scripts in ruby/1.9.1 should call ruby1.9 for consistency
-      perl -p -i -e "s,^#!/usr/bin/env ruby,#!/usr/bin/ruby,; s,^#! *[^ ]*/ruby\S*,#!/usr/bin/ruby$ruby," "$file"
-    done
-    # some windows made gems are broken
-    find $buildroot -ls
-    chmod -R u+w $buildroot
-    chmod -R o-w $buildroot
-  fi
-done
+cmdline = [gembinary, 'install', '--verbose', '--local', '--build-root', options.buildroot]
+cmdline += options.otheropts
+cmdline << options.gemfile
+GILogger.info "install cmdline: #{cmdline.inspect}"
+system(cmdline.join(' '))
+
+rpmname="#{options.rubyprefix}-rubygem-#{options.gemname}#{options.gemsuffix}"
+GILogger.info "RPM name: #{rpmname}"
+pwd = Dir.pwd
+bindir = File.join(options.rpmbuildroot, Gem.bindir)
+GILogger.info "bindir: #{bindir}"
+if options.symlinkbinaries && File.exists?(bindir)
+  br_ua_dir = File.join(options.rpmbuildroot, options.ua_dir)
+  GILogger.info "Creating upate-alternatives dir: #{br_ua_dir}"
+  FileUtils.mkdir_p(br_ua_dir)
+  begin
+    Dir.chdir(bindir)
+    GILogger.info "executables: #{spec.executables.inspect}"
+    spec.executables.each do |unversioned|
+      default_path   = Gem.default_exec_format % unversioned
+      full_versioned = "#{unversioned}#{options.rubysuffix}-#{spec.version}"
+      ruby_versioned = "#{unversioned}#{options.rubysuffix}"
+      gem_versioned  = "#{unversioned}-#{spec.version}"
+      File.rename(default_path, full_versioned)
+      # unversioned
+      [unversioned, ruby_versioned, gem_versioned].each do |linkname|
+        full_path = File.join(br_ua_dir, linkname)
+        ua_path   = File.join(options.ua_dir, linkname)
+        GILogger.info "Linking '#{linkname}' to '#{full_path}'"
+        File.symlink(linkname, full_path) unless File.symlink? full_path
+        GILogger.info "Linking '#{ua_path}' to '#{linkname}'"
+        File.symlink(ua_path, linkname) unless File.symlink? linkname
+      end
+    end
+  ensure
+    Dir.chdir(pwd)
+  end
+end
+
+# shebang line fix
+Find.find(File.join(options.buildroot, gemdir)) do |fname|
+  if File.file?(fname) && File.executable?(fname)
+    GILogger.info "Looking at #{fname}"
+    tmpdir = File.dirname(fname)
+    tmp = Tempfile.new('snapshot', tmpdir)
+    begin
+      fc = File.read(fname)
+      fc.gsub!(/^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
+      tmp.write(fc)
+      tmp.close
+      File.rename(tmp, fname)
+    ensure
+      tmp.close
+    end
+  else
+    next
+  end
+end
+
+unless options.docfiles.empty?
+  GILogger.info "Linking documentation"
+  docdir = File.join(options.rpmbuildroot, options.docdir, rpmname)
+  FileUtils.mkdir_p(docdir)
+
+  options.docfiles.each do |fname|
+    fullpath = File.join(gemdir, fname)
+    GILogger.info "- #{fullpath}"
+    File.symlink(fullpath, File.join(docdir,fname))
+  end
+end
+
+system("chmod -R u+w,go+rX,go-w #{options.rpmbuildroot}")
+system("find #{options.rpmbuildroot} -ls")
