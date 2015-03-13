@@ -12,7 +12,6 @@ done
 exit $?
 =end
 #!/usr/bin/ruby
-#require 'gem2rpm'
 require 'rbconfig'
 require 'optparse'
 require 'optparse/time'
@@ -21,8 +20,16 @@ require 'fileutils'
 require 'find'
 require 'tempfile'
 require 'logger'
-
+require 'rubygems'
 require 'rubygems/package'
+begin
+  require 'rubygems/format'
+rescue LoadError => ex
+end
+begin
+  require 'rbconfigpackagingsupport'
+rescue LoadError => ex
+end
 
 options=OpenStruct.new
 options.defaultgem=nil
@@ -60,7 +67,7 @@ def patchfile(fname, needle, replace)
       fc.gsub!(needle, replace)
       tmp.write(fc)
       tmp.close
-      File.rename(tmp, fname)
+      File.rename(tmp.path, fname)
     rescue ArgumentError => ex
       GILogger.error "Exception while patching '#{fname}'. (#{ex}) Skipping ..."
     ensure
@@ -82,7 +89,7 @@ opt_parser = OptionParser.new do |opts|
     options.defaultgem=fname
   end
   opts.on('--gem-binary [PATH]', 'Path to gem. By default we loop over all gem binaries we find') do |fname|
-    GILogger.warn ("The --gem-binary option is deprecated.")
+    GILogger.warn("The --gem-binary option is deprecated.")
   end
   opts.on('--doc-files [FILES]', 'Whitespace separated list of documentation files we should link to /usr/share/doc/packages/<subpackage>') do |files|
     options.docfiles = files.split(/\s+/)
@@ -142,8 +149,7 @@ if options.gemfile.nil?
   GILogger.info "Found gem #{options.gemfile}"
 end
 
-# TODO: we can *not* use gem2rpm here. check how to do it with plain rubygems.
-package   = Gem::Package.new(options.gemfile)
+package   = Gem::Package.new(options.gemfile) rescue Gem::Format.from_file_by_path(options.gemfile)
 spec      = package.spec
 gemdir    = File.join(Gem.dir, 'gems', "#{options.gemname}-#{options.gemversion}")
 # TODO: ruby = "#{File.join(RbConfig::CONFIG['bindir'],RbConfig::CONFIG['ruby_install_name'])}mo"
@@ -159,6 +165,7 @@ case rubysuffix
     options.rubysuffix = ".#{$1}"
     options.rubyprefix = $1
   when ''
+    # TODO: case seems broken
     rb_ver = RbConfig::CONFIG['ruby_version'].gsub(/^(\d+\.\d+).*$/, "\1")
     options.rubysuffix = ".ruby#{rb_ver}"
     options.rubyprefix = "ruby#{rb_ver}"
