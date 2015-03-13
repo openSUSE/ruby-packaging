@@ -49,6 +49,21 @@ def bail_out(msg)
   exit 1
 end
 
+def patchfile(fname, needle, replace)
+    tmpdir = File.dirname(fname)
+    tmp = Tempfile.new('snapshot', tmpdir)
+    begin
+      fc = File.read(fname)
+      # fc.gsub!(/^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
+      fc.gsub!(needle, replace)
+      tmp.write(fc)
+      tmp.close
+      File.rename(tmp, fname)
+    ensure
+      tmp.close
+    end
+end
+
 opt_parser = OptionParser.new do |opts|
   opts.banner = "Usage: gem_install.rb [options]"
 
@@ -166,6 +181,7 @@ if options.symlinkbinaries && File.exists?(bindir)
       ruby_versioned = "#{unversioned}#{options.rubysuffix}"
       gem_versioned  = "#{unversioned}-#{spec.version}"
       File.rename(default_path, full_versioned)
+      patchfile(full_versioned,  />= 0/, "= #{options.gemversion}")
       # unversioned
       [unversioned, ruby_versioned, gem_versioned].each do |linkname|
         full_path = File.join(br_ua_dir, linkname)
@@ -185,17 +201,7 @@ end
 Find.find(File.join(options.buildroot, gemdir)) do |fname|
   if File.file?(fname) && File.executable?(fname)
     GILogger.info "Looking at #{fname}"
-    tmpdir = File.dirname(fname)
-    tmp = Tempfile.new('snapshot', tmpdir)
-    begin
-      fc = File.read(fname)
-      fc.gsub!(/^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
-      tmp.write(fc)
-      tmp.close
-      File.rename(tmp, fname)
-    ensure
-      tmp.close
-    end
+    patchfile(fname, /^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
   else
     next
   end
