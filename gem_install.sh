@@ -126,7 +126,7 @@ opt_parser = OptionParser.new do |opts|
   end
 end
 
-options.otheropts=opt_parser.parse!(ARGV)
+options.otheropts+=opt_parser.parse!(ARGV)
 GILogger.info "unhandled options: #{options.otheropts.inspect}"
 if options.gemfile.nil?
   # we are in /home/abuild/rpmbuild/BUILD/
