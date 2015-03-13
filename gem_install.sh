@@ -82,7 +82,7 @@ opt_parser = OptionParser.new do |opts|
     options.defaultgem=fname
   end
   opts.on('--gem-binary [PATH]', 'Path to gem. By default we loop over all gem binaries we find') do |fname|
-    bail_out("The --gem-binary option is deprecated.")
+    GILogger.warn ("The --gem-binary option is deprecated.")
   end
   opts.on('--doc-files [FILES]', 'Whitespace separated list of documentation files we should link to /usr/share/doc/packages/<subpackage>') do |files|
     options.docfiles = files.split(/\s+/)
