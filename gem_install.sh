@@ -112,6 +112,9 @@ opt_parser = OptionParser.new do |opts|
   opts.on('-E', 'Forwarded to gem install') do |v|
     options.otheropts << '-E'
   end
+  opts.on('--no-ri', 'Forwarded to gem install') do |v|
+    options.otheropts << '--no-ri'
+  end
   opts.on('--no-rdoc', 'Forwarded to gem install') do |v|
     options.otheropts << '--no-rdoc'
   end
