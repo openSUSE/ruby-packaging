@@ -110,7 +110,10 @@ opt_parser = OptionParser.new do |opts|
     options.otheropts << '-f'
   end
   opts.on('-E', 'Forwarded to gem install') do |v|
-    options.otheropts << '-f'
+    options.otheropts << '-E'
+  end
+  opts.on('--no-rdoc', 'Forwarded to gem install') do |v|
+    options.otheropts << '--no-rdoc'
   end
   opts.separator ""
   opts.separator "Common options:"
