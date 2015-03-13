@@ -147,18 +147,19 @@ gembinary = Gem.default_exec_format % "/usr/bin/gem"
 rubysuffix = Gem.default_exec_format % ''
 case rubysuffix
   when /\A\d+.\d+\z/
-    options.rubysuffix = rubysuffix
-    options.rubyprefix = rubysuffix
+    options.rubysuffix = ".ruby#{rubysuffix}"
+    options.rubyprefix = "ruby#{rubysuffix}"
   when /\A\.(.*)\z/
     options.rubysuffix = ".#{$1}"
     options.rubyprefix = $1
   when ''
     rb_ver = RbConfig::CONFIG['ruby_version'].gsub(/^(\d+\.\d+).*$/, "\1")
-    options.rubysuffix = "ruby#{rb_ver}"
+    options.rubysuffix = ".ruby#{rb_ver}"
     options.rubyprefix = "ruby#{rb_ver}"
   else
     bail_out "unknown binary naming scheme: #{rubysuffix}"
 end
+GILogger.info "Using prefix #{options.rubyprefix}"
 GILogger.info "Using suffix #{options.rubysuffix}"
 
 cmdline = [gembinary, 'install', '--verbose', '--local', '--build-root', options.buildroot]
@@ -224,5 +225,5 @@ unless options.docfiles.empty?
   end
 end
 
-system("chmod -Rv u+w,go+rX,go-w #{options.rpmbuildroot}")
-system("find #{options.rpmbuildroot} -ls")
+system("chmod -R u+w,go+rX,go-w #{options.rpmbuildroot}")
+#system("find #{options.rpmbuildroot} -ls")
