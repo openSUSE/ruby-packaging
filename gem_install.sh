@@ -61,6 +61,8 @@ def patchfile(fname, needle, replace)
       tmp.write(fc)
       tmp.close
       File.rename(tmp, fname)
+    rescue ArgumentError => ex
+      GILogger.error "Exception while patching '#{fname}'. (#{ex}) Skipping ..."
     ensure
       tmp.close
     end
@@ -202,6 +204,7 @@ end
 # shebang line fix
 Find.find(File.join(options.buildroot, gemdir)) do |fname|
   if File.file?(fname) && File.executable?(fname)
+    next if fname =~ /\.so$/
     GILogger.info "Looking at #{fname}"
     patchfile(fname, /^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
   else
