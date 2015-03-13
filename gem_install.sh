@@ -6,7 +6,7 @@
 export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 shopt -s nullglob
-for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
+for ruby in $(/usr/bin/ruby-find-versioned) ; do
   $ruby -x $0 "$@"
 done
 exit $?
@@ -53,6 +53,8 @@ def patchfile(fname, needle, replace)
     tmpdir = File.dirname(fname)
     tmp = Tempfile.new('snapshot', tmpdir)
     begin
+      stat = File.stat(fname)
+      tmp.chmod(stat.mode)
       fc = File.read(fname)
       # fc.gsub!(/^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
       fc.gsub!(needle, replace)
@@ -219,5 +221,5 @@ unless options.docfiles.empty?
   end
 end
 
-system("chmod -R u+w,go+rX,go-w #{options.rpmbuildroot}")
+system("chmod -Rv u+w,go+rX,go-w #{options.rpmbuildroot}")
 system("find #{options.rpmbuildroot} -ls")

@@ -56,11 +56,6 @@ fi
 export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 set -x
-for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
-  ruby="${ruby#/usr/bin/ruby}"
-  if [[ $ruby == [0-9]* ]] ; then
-    ruby=".ruby$ruby"
-  fi
-  gemrpm="/usr/bin/gem2rpm${ruby}"
-  $gemrpm $otheropts
+for gr in $(/usr/bin/ruby-find-versioned gem2rpm) ; do
+  $gr $otheropts
 done

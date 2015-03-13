@@ -4,7 +4,7 @@
 # https://github.com/rubinius/rubinius/issues/2732
 export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
-for ruby in /usr/bin/ruby.* /usr/bin/ruby[0-9].[0-9] ; do
+for ruby in $(/usr/bin/ruby-find-versioned) ; do
   test -x "$ruby" && break
 done
 exec $ruby -x $0 "$@"
