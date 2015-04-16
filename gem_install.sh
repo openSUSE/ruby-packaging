@@ -179,7 +179,14 @@ cmdline = [gembinary, 'install', '--verbose', '--local', '--build-root', options
 cmdline += options.otheropts
 cmdline << options.gemfile
 GILogger.info "install cmdline: #{cmdline.inspect}"
-exit $?.exitstatus unless system(cmdline.join(' '))
+if Process.respond_to? :spawn
+  pid = Process.spawn(*cmdline)
+  pid, status = Process.wait2(pid)
+else
+  system(*cmdline)
+  status = $?
+end
+exit status.exitstatus unless 0 == status.exitstatus
 
 rpmname="#{options.rubyprefix}-rubygem-#{options.gemname}#{options.gemsuffix}"
 GILogger.info "RPM name: #{rpmname}"
