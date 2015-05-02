@@ -227,7 +227,7 @@ Find.find(File.join(options.buildroot, gemdir)) do |fname|
   if File.file?(fname) && File.executable?(fname)
     next if fname =~ /\.so$/
     GILogger.info "Looking at #{fname}"
-    patchfile(fname, /^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \2")
+    patchfile(fname, /^(#!\s*.*?)(\s+-.*)?$/, "#!#{ruby} \\2")
   else
     next
   end
