@@ -48,6 +48,18 @@ if [ "x$gemfile" = "x" ] ; then
   # if still empty, we pick the sources
   if [ "x$gemfile" = "x" ] ; then
     gemfile=$(find $RPM_SOURCE_DIR -name "$defaultgem")
+    # if still empty, we create one ourselves
+    if [ "x$gemfile" = "x" ] ; then
+      pushd ./rpmbuild/SOURCES >/dev/null 2>&1
+      tar -xf ${gemname}-${gemversion}.tar.*
+      pushd ${gemname}-${gemversion} >/dev/null 2>&1
+      mv ${gemname}.gemspec ${gemname}-${gemversion}.gemspec
+      gem build ${gemname}-${gemversion}.gemspec >/dev/null 2>&1
+      mv ${gemname}-${gemversion}.gem ..
+      popd >/dev/null 2>&1
+      popd >/dev/null 2>&1
+      gemfile=$(find "./rpmbuild/SOURCES" -name "$defaultgem")
+    fi
   fi
   otheropts="$otheropts $gemfile"
 fi
