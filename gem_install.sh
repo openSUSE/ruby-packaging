@@ -88,6 +88,9 @@ opt_parser = OptionParser.new do |opts|
   opts.on('--default-gem [FILENAME]', 'Which filename to use when we dont find another gem file.') do |fname|
     options.defaultgem=fname
   end
+  opts.on('--extconf-opts [EXTOPTS]', 'which options to pass to extconf') do |extopts|
+    options.extconfopts=extopts
+  end
   opts.on('--gem-binary [PATH]', 'Path to gem. By default we loop over all gem binaries we find') do |fname|
     GILogger.warn("The --gem-binary option is deprecated.")
   end
@@ -178,6 +181,10 @@ GILogger.info "Using suffix #{options.rubysuffix}"
 cmdline = [gembinary, 'install', '--verbose', '--local', '--build-root', options.buildroot]
 cmdline += options.otheropts
 cmdline << options.gemfile
+unless options.extconfopts.nil?
+  cmdline << '--'
+  cmdline << options.extconfopts
+end
 GILogger.info "install cmdline: #{cmdline.inspect}"
 if Process.respond_to? :spawn
   pid = Process.spawn(*cmdline)
@@ -206,7 +213,7 @@ if options.symlinkbinaries && File.exists?(bindir)
       ruby_versioned = "#{unversioned}#{options.rubysuffix}"
       gem_versioned  = "#{unversioned}-#{spec.version}"
       File.rename(default_path, full_versioned)
-      patchfile(full_versioned,  />= 0/, "= #{options.gemversion}")
+      patchfile(full_versioned,  />= 0(\.a)?/, "= #{options.gemversion}")
       # unversioned
       [unversioned, ruby_versioned, gem_versioned].each do |linkname|
         full_path = File.join(br_ua_dir, linkname)
