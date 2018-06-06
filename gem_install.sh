@@ -22,6 +22,7 @@ require 'tempfile'
 require 'logger'
 require 'rubygems'
 require 'rubygems/package'
+require 'yaml'
 begin
   require 'rubygems/format'
 rescue LoadError => ex
@@ -48,6 +49,7 @@ options.symlinkbinaries=false
 options.verbose = false
 options.rpmsourcedir = ENV['RPM_SOURCE_DIR'] || '/home/abuild/rpmbuild/SOURCES'
 options.rpmbuildroot = ENV['RPM_BUILD_ROOT'] || '/home/abuild/rpmbuild/BUILDROOT/just-testing'
+options.parsed_config = nil
 
 GILogger = Logger.new(STDERR)
 GILogger.level=Logger::DEBUG
@@ -75,6 +77,20 @@ def patchfile(fname, needle, replace)
     end
 end
 
+def map_executable(options, executable)
+  if not(options.parsed_config.nil? or
+         options.parsed_config[:binary_map].nil? or
+         options.parsed_config[:binary_map][executable].nil?)
+    executable=options.parsed_config[:binary_map][executable]
+  end
+  executable
+end
+
+def initialized_gem2rpm_config(options, name)
+  options.config = name
+  options.parsed_config = YAML.load_file(name)
+end
+
 opt_parser = OptionParser.new do |opts|
   opts.banner = "Usage: gem_install.rb [options]"
 
@@ -82,11 +98,14 @@ opt_parser = OptionParser.new do |opts|
   opts.separator "Specific options:"
 
   opts.on('--config [FILENAME]', 'path to gem2rpm.yml') do |name|
-    options.config = name
+    initialized_gem2rpm_config(options, name)
   end
 
   opts.on('--default-gem [FILENAME]', 'Which filename to use when we dont find another gem file.') do |fname|
     options.defaultgem=fname
+  end
+  opts.on('--extconf-opts [EXTOPTS]', 'which options to pass to extconf') do |extopts|
+    options.extconfopts=extopts
   end
   opts.on('--gem-binary [PATH]', 'Path to gem. By default we loop over all gem binaries we find') do |fname|
     GILogger.warn("The --gem-binary option is deprecated.")
@@ -149,6 +168,13 @@ if options.gemfile.nil?
   GILogger.info "Found gem #{options.gemfile}"
 end
 
+if options.config.nil?
+  name = File.join(options.rpmsourcedir, 'gem2rpm.yml')
+  if File.exist?(name)
+    initialized_gem2rpm_config(options, name)
+  end
+end
+
 package   = Gem::Package.new(options.gemfile) rescue Gem::Format.from_file_by_path(options.gemfile)
 spec      = package.spec
 gemdir    = File.join(Gem.dir, 'gems', "#{options.gemname}-#{options.gemversion}")
@@ -178,6 +204,10 @@ GILogger.info "Using suffix #{options.rubysuffix}"
 cmdline = [gembinary, 'install', '--verbose', '--local', '--build-root', options.buildroot]
 cmdline += options.otheropts
 cmdline << options.gemfile
+unless options.extconfopts.nil?
+  cmdline << '--'
+  cmdline << options.extconfopts
+end
 GILogger.info "install cmdline: #{cmdline.inspect}"
 if Process.respond_to? :spawn
   pid = Process.spawn(*cmdline)
@@ -205,8 +235,9 @@ if options.symlinkbinaries && File.exists?(bindir)
       full_versioned = "#{unversioned}#{options.rubysuffix}-#{spec.version}"
       ruby_versioned = "#{unversioned}#{options.rubysuffix}"
       gem_versioned  = "#{unversioned}-#{spec.version}"
+      unversioned = map_executable(options, unversioned)
       File.rename(default_path, full_versioned)
-      patchfile(full_versioned,  />= 0/, "= #{options.gemversion}")
+      patchfile(full_versioned,  />= 0(\.a)?/, "= #{options.gemversion}")
       # unversioned
       [unversioned, ruby_versioned, gem_versioned].each do |linkname|
         full_path = File.join(br_ua_dir, linkname)

@@ -68,7 +68,7 @@ cd $GEMSPEC_SOURCE_DIR && %{?gem_binary}%{!?gem_binary:/usr/bin/gem} build --ver
 for gem in $(/usr/bin/ruby-find-versioned gem) ; do \
   gem_base="$($gem env gemdir)" \
   /usr/lib/rpm/gem_build_cleanup.sh %{buildroot}${gem_base} \
-  fdupes -q -p -n -r %{buildroot}${gem_base} | \
+  fdupes -q -p -n -r -o name %{buildroot}${gem_base} | \
     while read _file; do \
       if test -z "$_target" ; then \
         _target="$_file"; \

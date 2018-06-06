@@ -47,7 +47,12 @@ requires=false
 opts.on("-R", "--requires", "Output the requires of the package") do |val|
   requires=true
 end
-file_match=".*/gems/[^/]*/specifications/.*\.gemspec$"
+bundled=false
+opts.on("-b", "--bundled", "Output provides as bundled ones") do |val|
+  bundled=true
+end
+
+file_match=nil
 opts.on("-m", "--file-match REGEX", String,
 	"Override the regex against which the input file names",
         "matched with the supplied regex") do |val|
@@ -63,6 +68,19 @@ rest = opts.permute(ARGV)
 
 unless provides || requires
   exit(0)
+end
+
+if file_match.nil?
+  if bundled
+    file_match = ".*/vendor/bundle/[^/]*/[^/]*/specifications/.*\.gemspec$"
+  else
+    file_match = ".*/gems/[^/]*/specifications/.*\.gemspec$"
+  end
+end
+
+$rubyapi_re = %r{.*/([^/]*)/gems/([^/]*)/.*}
+if bundled
+  $rubyapi_re = %r{.*/vendor/bundle/([^/]*)/([^/]*)/.*}
 end
 
 def fatal(msg)
@@ -89,7 +107,7 @@ def register_gemspec_from_file(gemspecs, rubyabi, file)
 end  
 
 def rubyabi_from_path(path)
-  m = path.match(%r{.*/([^/]*)/gems/([^/]*)/.*})
+  m = path.match($rubyapi_re)
   # return m ? m[1] : RbConfig::CONFIG["ruby_version"]
   return { :interpreter => m[1], :version => m[2], :abi => "#{m[1]}:#{m[2]}", :requires => "#{m[1]}(abi) = #{m[2]}" }
 end
@@ -124,12 +142,16 @@ gemspecs.each do |rubyabi_hash, spec|
     # puts "rubygem-#{spec.name}-#{versions[0]}_#{versions[1]}_#{versions[2]} = #{spec.version}" if versions.length > 2
 
     # version without ruby version - asking for trouble
-    puts "rubygem(#{spec.name}) = #{spec.version}"
-    if rubyabi
-      puts "rubygem(#{rubyabi}:#{spec.name}) = #{spec.version}"
-      puts "rubygem(#{rubyabi}:#{spec.name}:#{versions[0]}) = #{spec.version}" if versions.length > 0
-      puts "rubygem(#{rubyabi}:#{spec.name}:#{versions[0]}.#{versions[1]}) = #{spec.version}" if versions.length > 1
-      puts "rubygem(#{rubyabi}:#{spec.name}:#{versions[0]}.#{versions[1]}.#{versions[2]}) = #{spec.version}" if versions.length > 2
+    if bundled
+      puts "bundled(rubygem(#{spec.name})) = #{spec.version}"
+    else
+      puts "rubygem(#{spec.name}) = #{spec.version}"
+      if rubyabi
+	puts "rubygem(#{rubyabi}:#{spec.name}) = #{spec.version}"
+	puts "rubygem(#{rubyabi}:#{spec.name}:#{versions[0]}) = #{spec.version}" if versions.length > 0
+	puts "rubygem(#{rubyabi}:#{spec.name}:#{versions[0]}.#{versions[1]}) = #{spec.version}" if versions.length > 1
+	puts "rubygem(#{rubyabi}:#{spec.name}:#{versions[0]}.#{versions[1]}.#{versions[2]}) = #{spec.version}" if versions.length > 2
+      end
     end
   end
 
