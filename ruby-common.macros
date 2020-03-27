@@ -21,3 +21,15 @@
 %rubydevelSTOP() %nil
 %rubydevelxSTOP() %*
 #
+
+%rb_fix_shebang() \
+  if [ "%{rb_suffix}" != "" ];then \
+    for i in $(grep '^#!/usr/bin/env ruby$' * -r | cut -d: -f1 | sort | uniq);do\
+      sed -e 's|^#!/usr/bin/env ruby$|#!/usr/bin/ruby.%{rb_suffix}|g' -i $i;\
+    done;\
+    for i in $(grep '^#!/usr/bin/ruby$' * -r | cut -d: -f1 | sort | uniq);do\
+       sed -e 's|^#!/usr/bin/ruby$|#!/usr/bin/ruby.%{rb_suffix}|g' -i $i;\
+    done;\
+  fi; \
+%{nil}
+
